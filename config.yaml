@@ -1,0 +1,9 @@
+hyperparameters:
+  input_size : 7
+  hidden_size : 64  
+  output_size : 48
+  num_layers : 2  
+
+inference_params:
+  window_size: 96
+  n_lags: 2

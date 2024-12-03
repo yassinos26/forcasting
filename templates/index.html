@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Occupied Prediction Dashboard</title>
+<link rel="icon" href="static/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="static/styles.css">
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <table>
+        <tr>
+            <td width="30%">
+                <img src="static/logo.png" alt="Logo" class="logo">
+            </td>
+            <td width="70%">
+                <h1> Parking Occupancy Prediction</h1>
+            </td>
+        </tr>
+    </table>
+    <div>
+        <button id="predictButton">Prediction</button>
+        <div id="dashboard" style="display: none;">
+            <h2>Prediction Results</h2>
+            <div id="chart"></div>
+        </div>
+    </div>
+</div>
+<script src="static/script.js"></script>
+</body>
+</html>
