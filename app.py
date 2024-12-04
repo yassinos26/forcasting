@@ -30,61 +30,28 @@ class BiLSTMModel(nn.Module):
 
 
 # ---------------------------------------------------------------------------------------------------
-# Scaler configuration
-# ---------------------------------------------------------------------------------------------------
-def prepare_inference_data(df, scaler, input_window):
-    """
-    Prepare raw incoming data for inference, aligning with the training data preparation steps.
-    """
-    df['Date_Time_HalfHour'] = pd.to_datetime(df['Date'] + ' ' + df['Time_HalfHour'])
-    df.set_index('Date_Time_HalfHour', inplace=True)
-
-    df_agg = df.groupby(df.index).agg({
-        'Occupancy': 'sum',
-        'Capacity': 'first',
-        'DayOfWeek': 'first'
-    })
-    df_agg['PercentOccupied'] = df_agg['Occupancy'] / df_agg['Capacity']
-
-    df_agg['lag_1'] = df_agg['PercentOccupied'].shift(1)
-    df_agg['lag_2'] = df_agg['PercentOccupied'].shift(2)
-    df_agg['lag_3'] = df_agg['PercentOccupied'].shift(3)
-    df_agg['rolling_mean'] = df_agg['PercentOccupied'].rolling(window=24).mean()
-    df_agg['rolling_std'] = df_agg['PercentOccupied'].rolling(window=24).std()
-
-    df_agg.bfill(inplace=True)
-    df_agg.ffill(inplace=True)
-
-    features = ['DayOfWeek', 'PercentOccupied', 'lag_1', 'lag_2', 'lag_3', 'rolling_mean', 'rolling_std']
-    scaled_features = scaler.transform(df_agg[features])
-    df_scaled = pd.DataFrame(scaled_features, index=df_agg.index, columns=features)
-
-    X = []
-    timestamps = []
-    for i in range(len(df_scaled) - input_window + 1):
-        X.append(df_scaled.iloc[i:(i + input_window)].values)
-        timestamps.append(df_scaled.index[i + input_window - 1])
-
-    return np.array(X), pd.to_datetime(timestamps)
-
-
 # Paths
-config_path = r"C:/Users/Yassine/Desktop/wided/final/config.yaml"
-scaler_path = r"C:/Users/Yassine/Desktop/wided/final/scaler"
-checkpoint_path = r"C:/Users/Yassine/Desktop/wided/final/best.pt"
 
+config_path = r"C:\Users\MSI\Parking Occupancy Forecasting\config.yaml"
+tensor_path = r"C:\Users\MSI\Parking Occupancy Forecasting\tensor.pt"
+checkpoint_path = r"C:\Users\MSI\Parking Occupancy Forecasting\best.pt"
 # Load configuration
 with open(config_path, "r") as file:
     config = yaml.safe_load(file)
-
-# Load and verify scaler
-scaler = joblib.load(scaler_path)
 
 # Load model and set to evaluation mode
 model = BiLSTMModel(**config["hyperparameters"])
 state_dict = torch.load(checkpoint_path)
 model.load_state_dict(state_dict)
 model.eval()
+# Load processed data 
+
+def load_tensor(tensor_path):
+    """
+    Load the tensor and timestamps from the given file path.
+    """
+    loaded_data = torch.load(tensor_path)
+    return loaded_data['data'], loaded_data['timestamps']
 
 # Helper function to expand timestamps
 def expand_timestamps(base_timestamps, periods):
@@ -100,25 +67,19 @@ def home():
     """Render the main template."""
     return render_template('index.html')
 
+from flask import send_from_directory
 
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Get the input data
-        data = request.json
-        df_new = pd.DataFrame(data)
-
-        # Preprocess data
-        window_size = 96
-        processed_data, timestamps = prepare_inference_data(df_new, scaler, window_size)
-        inference_tensor = torch.tensor(processed_data, dtype=torch.float32)
-
         # Run inference
         with torch.no_grad():
+            inference_tensor, timestamps = load_tensor(tensor_path)
             predictions = model(inference_tensor).numpy().flatten()
 
         # Expand timestamps and prepare results
         all_timestamps = expand_timestamps(timestamps, periods=48)
+        
         result_df = pd.DataFrame({
             'Timestamp': all_timestamps,
             'Prediction': predictions
@@ -127,12 +88,11 @@ def predict():
         # Sorting the results
         result_df = result_df.sort_values(by='Timestamp').reset_index(drop=True)
         result_df = result_df.groupby('Timestamp')['Prediction'].mean().reset_index()
-        result_json = result_df.to_json('predictions.json', orient='records', date_format='iso', lines=True)
+
+        # Convert DataFrame to JSON
+        result_json = result_df.to_json(orient='records', date_format='iso')
         
-        # Convert to JSON and return response
-        # result_json = result_df.to_dict(orient='records')
-        
-        return jsonify(result_json)
+        return result_json, 200, {'ContentType':'application/json'}
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
