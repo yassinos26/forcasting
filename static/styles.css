@@ -1,52 +1,126 @@
+/* Global Styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f9;
+    background-color: #000000;
+    color: #000000;
     text-align: center;
 }
 
-.container {
-    max-width: 800px;
-    margin: auto;
-    padding: 20px;
+/* Footer Styles */
+.footer {
+    background-color: #1E1E1E;
+    color: #ffffff;
+    text-align: center;
+    padding: 10px;
+    margin-top: 30px;
+    font-size: 0.9rem;
+    border-top: 1px solid #444;
+    position: fixed; /* Footer is fixed at the bottom */
+    bottom: 0;
+    width: 100%;
 }
 
-header {
-    margin-bottom: 20px;
+.footer p {
+    margin: 0;
+    font-size: 1rem;
+    color: #ccc;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #000000;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Section */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #444;
 }
 
 .logo {
-    width: 100px;
-    height: auto;
+    height: 50px;
+    width: auto;
+    opacity: 0.5; /* Valeur entre 0 (complètement transparent) et 1 (opaque) */
 }
 
 h1 {
     font-size: 2rem;
-    color: #333;
+    color: #00bcd4;
     text-align: center;
+    margin: 0;
+}
+
+/* Button Styles */
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
 }
 
 button {
     padding: 10px 20px;
     font-size: 1rem;
-    color: white;
-    background-color: #007BFF;
+    color: #ffffff;
+    background-color: #00bcd4;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    margin-bottom: 20px;
+    margin: 10px 0;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: #0288d1;
 }
 
+#loadingSpinner {
+    display: none;
+    margin: 20px auto;
+    border: 6px solid #2c2f3e;
+    border-top: 6px solid #00bcd4;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Dashboard Section */
 #dashboard {
     margin-top: 20px;
 }
 
+/* Chart Section */
 #chart {
-    width: 100%;
+    width: 700px;
     height: 400px;
+    margin: 20px auto;
+    background-color: #2B2F3E;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+#stats {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #2B2F3E;
+    border-radius: 10px;
+    color: #E0E0E0;
 }

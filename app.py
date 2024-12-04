@@ -1,13 +1,12 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import torch
 import yaml
-import joblib
 import pandas as pd
-import numpy as np
 import torch.nn as nn
 from flask_cors import CORS
+import os
 
-# Initialisation du Flask app
+# Initialisation de l'application Flask
 app = Flask(__name__)
 CORS(app)
 
@@ -24,70 +23,36 @@ class BiLSTMModel(nn.Module):
 
     def forward(self, x):
         _, (h_n, _) = self.lstm(x)
-        print("Les données d'entrée sont :", x)
         h_n = torch.cat((h_n[-2], h_n[-1]), dim=1)
         out = self.fc(h_n)
         return out
 
-
 # ---------------------------------------------------------------------------------------------------
-# Scaler configuration
-# ---------------------------------------------------------------------------------------------------
-def prepare_inference_data(df, scaler, input_window):
-    """
-    Prepare raw incoming data for inference, aligning with the training data preparation steps.
-    """
-    df['Date_Time_HalfHour'] = pd.to_datetime(df['Date'] + ' ' + df['Time_HalfHour'])
-    df.set_index('Date_Time_HalfHour', inplace=True)
-
-    df_agg = df.groupby(df.index).agg({
-        'Occupancy': 'sum',
-        'Capacity': 'first',
-        'DayOfWeek': 'first'
-    })
-    df_agg['PercentOccupied'] = df_agg['Occupancy'] / df_agg['Capacity']
-
-    df_agg['lag_1'] = df_agg['PercentOccupied'].shift(1)
-    df_agg['lag_2'] = df_agg['PercentOccupied'].shift(2)
-    df_agg['lag_3'] = df_agg['PercentOccupied'].shift(3)
-    df_agg['rolling_mean'] = df_agg['PercentOccupied'].rolling(window=24).mean()
-    df_agg['rolling_std'] = df_agg['PercentOccupied'].rolling(window=24).std()
-
-    df_agg.bfill(inplace=True)
-    df_agg.ffill(inplace=True)
-
-    features = ['DayOfWeek', 'PercentOccupied', 'lag_1', 'lag_2', 'lag_3', 'rolling_mean', 'rolling_std']
-    scaled_features = scaler.transform(df_agg[features])
-    df_scaled = pd.DataFrame(scaled_features, index=df_agg.index, columns=features)
-
-    X = []
-    timestamps = []
-    for i in range(len(df_scaled) - input_window + 1):
-        X.append(df_scaled.iloc[i:(i + input_window)].values)
-        timestamps.append(df_scaled.index[i + input_window - 1])
-
-    return np.array(X), pd.to_datetime(timestamps)
-
-
 # Paths
-config_path = r"C:/Users/Yassine/Desktop/wided/final/config.yaml"
-scaler_path = r"C:/Users/Yassine/Desktop/wided/final/scaler"
-checkpoint_path = r"C:/Users/Yassine/Desktop/wided/final/best.pt"
+config_path = 'config.yaml'
+tensor_path = 'tensor.pt'
+checkpoint_path = 'best.pt'
+output_csv_path = 'predictions.csv'  # Chemin pour sauvegarder le fichier CSV
 
-# Load configuration
+# Charger la configuration
 with open(config_path, "r") as file:
     config = yaml.safe_load(file)
 
-# Load and verify scaler
-scaler = joblib.load(scaler_path)
-
-# Load model and set to evaluation mode
+# Charger le modèle et le mettre en mode évaluation
 model = BiLSTMModel(**config["hyperparameters"])
 state_dict = torch.load(checkpoint_path)
 model.load_state_dict(state_dict)
 model.eval()
 
-# Helper function to expand timestamps
+# Charger les données traitées
+def load_tensor(tensor_path):
+    """
+    Charger le tenseur et les timestamps depuis le chemin donné.
+    """
+    loaded_data = torch.load(tensor_path)
+    return loaded_data['data'], loaded_data['timestamps']
+
+# Fonction utilitaire pour étendre les timestamps
 def expand_timestamps(base_timestamps, periods):
     expanded_timestamps = []
     half_hour = pd.Timedelta(minutes=30)
@@ -95,78 +60,59 @@ def expand_timestamps(base_timestamps, periods):
         expanded_timestamps.extend([base + half_hour * i for i in range(1, periods + 1)])
     return expanded_timestamps
 
-# ---------------------------------------------------------------------------------------------------
-# Flask Routes
-# ---------------------------------------------------------------------------------------------------
-
-@app.route("/")
+# Route pour afficher la page d'accueil
+@app.route('/')
 def home():
-    """Render the main template."""
-    return render_template("index.html")
+    """Rendre le template principal."""
+    return render_template('index.html')
 
-from flask import send_from_directory
-
-@app.route("/predict", methods=["POST"])
+# Route pour les prédictions
+@app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Get the input data
-        data = request.json
-        df_new = pd.DataFrame(data)
-
-        # Preprocess data
-        window_size = 96
-        processed_data, timestamps = prepare_inference_data(df_new, scaler, window_size)
-        inference_tensor = torch.tensor(processed_data, dtype=torch.float32)
-
-        # Run inference
+        # Effectuer l'inférence
         with torch.no_grad():
+            inference_tensor, timestamps = load_tensor(tensor_path)
             predictions = model(inference_tensor).numpy().flatten()
 
-        # Expand timestamps and prepare results
+        # Étendre les timestamps et préparer les résultats
         all_timestamps = expand_timestamps(timestamps, periods=48)
+        
         result_df = pd.DataFrame({
             'Timestamp': all_timestamps,
             'Prediction': predictions
         })
 
-        # Sorting the results
+        # Trier les résultats
         result_df = result_df.sort_values(by='Timestamp').reset_index(drop=True)
         result_df = result_df.groupby('Timestamp')['Prediction'].mean().reset_index()
-        result_json = result_df.to_json('predictions.json', orient='records', date_format='iso', lines=True)
-        
-        # Convert to JSON and return response
-        # result_json = result_df.to_dict(orient='records')
-        
-        return jsonify(result_json)
+
+        # Sauvegarder les résultats en CSV
+        result_df.to_csv(output_csv_path, index=False)
+
+        # Convertir DataFrame en JSON pour la réponse
+        result_json = result_df.to_json(orient='records', date_format='iso')
+        return result_json, 200, {'ContentType': 'application/json'}
 
     except Exception as e:
-        return jsonify({"error": f"Une erreur s'est produite : {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
+# Route pour télécharger le fichier CSV
+@app.route('/download', methods=['GET'])
+def download_csv():
+    try:
+        # Vérifier si le fichier existe
+        if not os.path.exists(output_csv_path):
+            return jsonify({"error": "Le fichier des prédictions n'existe pas."}), 404
+        
+        # Envoyer le fichier CSV
+        return send_from_directory(
+            directory=os.path.dirname(output_csv_path),
+            path=os.path.basename(output_csv_path),
+            as_attachment=True
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-# ---------------------------------------------------------------------------------------------------
-# Main Function
-# ---------------------------------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Load configuration
-    config_path = "config.yaml"
-    checkpoint_path = "best.pt"
-    scaler_path = r"C:/Users/Yassine/Desktop/forcasting/scaler"
-
-    with open(config_path, "r") as file:
-        config = yaml.safe_load(file)
-
-    # Load model and set to evaluation mode
-    model = BiLSTMModel(**config["hyperparameters"])
-    state_dict = torch.load(checkpoint_path)
-    model.load_state_dict(state_dict)
-    model.eval()
-
-    # Load and verify scaler
-    scaler = joblib.load(scaler_path)
-
-    # Define device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
-    # Run Flask app
-    app.run(port=5020, host="0.0.0.0", debug=True)
+if __name__ == '__main__':
+    app.run(port=5020, host='0.0.0.0', debug=True)
