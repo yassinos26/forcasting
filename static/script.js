@@ -99,5 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingSpinner.style.display = 'none';
         }
     });
+    // Download Button Click Event
+    downloadButton.addEventListener('click', () => {
+        window.location.href = 'http://127.0.0.1:5020/download';
+    });
 });
 
