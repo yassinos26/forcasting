@@ -11,29 +11,21 @@ from preprocessing.preprocess import prepare_inference_data
 warnings.filterwarnings("ignore")
 
 # Path definitions
-config_path = r"C:\Users\MSI\model\config.yml"
-data_path = r"C:\Users\MSI\model\extracted_data.csv"
-scaler_path = r"C:\Users\MSI\model\preprocessing\scaler"
-checkpoint_path = r"C:\Users\MSI\model\model\checkpoints\best_model .pth"
+config_path = r"C:\Users\MSI\Parking Occupancy Forecasting\config.yaml"
+tensor_path = r"C:\Users\MSI\Parking Occupancy Forecasting\tensor.pt"
+checkpoint_path = r"C:\Users\MSI\Parking Occupancy Forecasting\best.pt"
+
 
 # Load configuration
 with open(config_path, "r") as file:
     config = yaml.safe_load(file)
 
-# Load data
-df_new = pd.read_csv(data_path)
-
-# Load and verify scaler
-scaler = joblib.load(scaler_path)
-if hasattr(scaler, 'scale_'):
-    print("Scaler is fitted and ready to use.")
-else:
-    print("Scaler is not fitted. Something went wrong during loading.")
-
-# Data preprocessing
-window_size = 96
-processed_data, timestamps = prepare_inference_data(df_new, scaler, window_size)
-inference_tensor = torch.tensor(processed_data, dtype=torch.float32)
+# Load processed data 
+def load_tensor(tensor_path):
+    """
+    Load the tensor from the given file path.
+    """
+    return torch.load(tensor_path)
 
 # Load model and set to evaluation mode
 model = BiLSTMModel(**config["hyperparameters"])
@@ -44,8 +36,10 @@ model.eval()
 print("Model loaded successfully and set to evaluation mode.")
 
 # Inference
+
 with torch.no_grad():
-    predictions = model(inference_tensor)
+    inference_tensor = load_tensor(tensor_path)
+    predictions = model(inference_tensor).numpy().flatten()
 
 # Function to expand timestamps for prediction output
 def expand_timestamps(base_timestamps, periods):
@@ -57,7 +51,6 @@ def expand_timestamps(base_timestamps, periods):
 
 # Prepare results
 all_timestamps = expand_timestamps(timestamps, periods=48)
-predictions = predictions.numpy().flatten()
 result_df = pd.DataFrame({
     'Timestamp': all_timestamps,
     'Prediction': predictions

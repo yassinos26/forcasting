@@ -1,33 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Occupied Prediction Dashboard</title>
-<link rel="icon" href="static/favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="static/styles.css">
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Occupancy Dashboard</title>
+    <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #1E1E1E;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Header Section */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #444;
+        }
+
+        .logo {
+            max-width: 100px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #00bcd4;
+            text-align: center;
+            margin: 0;
+        }
+
+        /* Button Styles */
+        #predictButton {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #00bcd4;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        #predictButton:hover {
+            background-color: #0288d1;
+            transform: scale(1.05);
+        }
+
+        /* Spinner Styles */
+        #loadingSpinner {
+            display: none;
+            margin: 20px auto;
+            border: 6px solid #2c2f3e;
+            border-top: 6px solid #00bcd4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Dashboard Section */
+        #dashboard {
+            margin-top: 20px;
+        }
+
+        /* Chart Section */
+        #chart {
+            margin: 20px auto;
+            width: 100%;
+            max-width: 900px;
+            height: 400px;
+            border-radius: 10px;
+            background-color: #1E1E1E;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Statistics Section */
+        #stats {
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 900px;
+            background-color: #2B2F3E;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            color: #E0E0E0;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        #stats h3 {
+            font-size: 1.5rem;
+            color: #00bcd4;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #stats p {
+            margin: 10px 0;
+            font-size: 1rem;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            #predictButton {
+                font-size: 14px;
+                padding: 10px 20px;
+            }
+
+            #stats p {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-    <table>
-        <tr>
-            <td width="30%">
-                <img src="static/logo.png" alt="Logo" class="logo">
-            </td>
-            <td width="70%">
-                <h1> Parking Occupancy Prediction</h1>
-            </td>
-        </tr>
-    </table>
-    <div>
-        <button id="predictButton">Prediction</button>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <img src="static/logo.png" alt="Logo" class="logo">
+            <h1>Parking Occupancy Prediction</h1>
+        </div>
+
+        <!-- Prediction Button -->
+        <button id="predictButton">Get Prediction</button>
+        
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner"></div>
+
+        <!-- Dashboard Section -->
         <div id="dashboard" style="display: none;">
-            <h2>Prediction Results</h2>
+            <!-- Chart Section -->
+            <h2 style="text-align: center; color: #00bcd4; margin-bottom: 20px;">Prediction Chart</h2>
             <div id="chart"></div>
+
+            <!-- Statistics Section -->
+            <div id="stats"></div>
         </div>
     </div>
-</div>
-<script src="static/script.js"></script>
+
+    <script src="static/script.js"></script>
 </body>
 </html>

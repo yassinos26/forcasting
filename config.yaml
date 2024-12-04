@@ -7,3 +7,7 @@ hyperparameters:
 inference_params:
   window_size: 96
   n_lags: 2
+paths:
+  config_path: "config/config.yaml"
+  tensor_path: "output/tensor.pt"
+  checkpoint_path: "models/best.pt"
